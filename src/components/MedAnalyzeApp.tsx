@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Send, FileText, Activity, AlertCircle, CheckCircle, Loader, Database, Hospital, Calendar, MapPin, Stethoscope, X, ExternalLink, Phone, Mail, Sparkles, TrendingUp, Shield, Zap, ChevronRight, Clock } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://backend-production-fcea.up.railway.app';
 
 // Animated Background Component
 const AnimatedBackground = () => (
