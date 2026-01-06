@@ -6,7 +6,7 @@ const Index = () => {
   const [showApp, setShowApp] = useState(false);
 
   if (showApp) {
-    return <MedAnalyzeApp />;
+    return <MedAnalyzeApp onBackToLanding={() => setShowApp(false)} />;
   }
 
   return <LandingPage onEnterApp={() => setShowApp(true)} />;

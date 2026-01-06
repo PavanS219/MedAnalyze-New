@@ -3,20 +3,6 @@ import { Upload, Send, FileText, Activity, AlertCircle, CheckCircle, Loader, Dat
 
 const API_BASE_URL = 'http://localhost:8000';
 
-// Type definitions
-interface TableData {
-  headers: string[];
-  rows: string[][];
-}
-
-interface Message {
-  role: string;
-  content: string;
-  tableData?: TableData;
-  abnormalTests?: string[];
-  patientName?: string;
-}
-
 // Animated Background Component
 const AnimatedBackground = () => (
   <div style={{
@@ -936,7 +922,13 @@ const MediExtractApp = () => {
   const [processing, setProcessing] = useState(false);
   const [processedReports, setProcessedReports] = useState([]);
   const [dbStatus, setDbStatus] = useState(null);
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<Array<{
+    role: string;
+    content: string;
+    tableData?: any;
+    abnormalTests?: any[];
+    patientName?: string;
+  }>>([
     {
       role: 'assistant',
       content: "👋 Hello! I'm your Medical Report Analytics Assistant. Upload medical reports to get started, then ask me anything about the patient data!"
@@ -1019,7 +1011,7 @@ const MediExtractApp = () => {
       
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: data.response || 'Sorry, I could not process your query.',
+        content: data.response || null,
         tableData: data.table_data || null,
         isComparison: data.is_comparison || false,
         abnormalTests: data.abnormal_tests || null,
@@ -1388,7 +1380,7 @@ const MediExtractApp = () => {
             backdropFilter: 'blur(10px)'
           }}>
             {[
-              { id: 'chat', label: 'AI Assistant', icon: '֎' },
+              { id: 'chat', label: 'AI Assistant', icon: '🤖' },
               { id: 'summary', label: 'Report Summary', icon: '📊' },
               { id: 'samples', label: 'Sample Queries', icon: '💡' }
             ].map(tab => (
@@ -1573,7 +1565,7 @@ const MediExtractApp = () => {
                       value={currentMessage}
                       onChange={(e) => setCurrentMessage(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                      placeholder="Ask about medical reports"
+                      placeholder="Ask about medical reports..."
                       disabled={querying || !dbStatus?.exists}
                       style={{
                         flex: 1,

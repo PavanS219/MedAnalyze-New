@@ -1,6 +1,6 @@
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { useRef, useMemo, useState, useEffect } from 'react';
-import { Mesh, Vector3 } from 'three';
+import { Mesh } from 'three';
 import * as THREE from 'three';
 
 interface FloatingElementProps {
@@ -45,10 +45,10 @@ const FloatingElement = ({
     const time = state.clock.getElapsedTime();
     meshRef.current.position.y = initialY + Math.sin(time * floatSpeed) * floatRange;
     
-    // Mouse parallax
+    // Mouse parallax (reduced effect)
     const mouse = state.mouse;
-    meshRef.current.position.x = position[0] + mouse.x * 0.5;
-    meshRef.current.position.z = position[2] + mouse.y * 0.5;
+    meshRef.current.position.x = position[0] + mouse.x * 0.3;
+    meshRef.current.position.z = position[2] + mouse.y * 0.3;
   });
 
   const geometry = isCircle 
@@ -58,9 +58,9 @@ const FloatingElement = ({
   return (
     <mesh ref={meshRef} position={position} geometry={geometry}>
       {texture ? (
-        <meshStandardMaterial map={texture} side={THREE.DoubleSide} transparent />
+        <meshStandardMaterial map={texture} side={THREE.DoubleSide} transparent opacity={0.9} />
       ) : (
-        <meshStandardMaterial color="#667eea" side={THREE.DoubleSide} transparent opacity={0.8} />
+        <meshStandardMaterial color="#667eea" side={THREE.DoubleSide} transparent opacity={0.7} />
       )}
     </mesh>
   );
@@ -88,8 +88,8 @@ const FloatingIcon3D = ({
     meshRef.current.position.y = initialY + Math.sin(time * floatSpeed) * floatRange;
     
     const mouse = state.mouse;
-    meshRef.current.position.x = position[0] + mouse.x * 0.3;
-    meshRef.current.position.z = position[2] + mouse.y * 0.3;
+    meshRef.current.position.x = position[0] + mouse.x * 0.2;
+    meshRef.current.position.z = position[2] + mouse.y * 0.2;
   });
 
   const getGeometry = () => {
@@ -114,6 +114,8 @@ const FloatingIcon3D = ({
         roughness={0.2}
         emissive="#667eea"
         emissiveIntensity={0.3}
+        transparent
+        opacity={0.8}
       />
     </mesh>
   );
@@ -141,68 +143,83 @@ export const FloatingScene = () => {
       '/images/doctor-5.jpg'
     ];
     
-    // Generate floating medical reports
+    // Generate floating medical reports - spread around edges
     for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      const radius = 8 + Math.random() * 4;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius - 6;
+      
       items.push({
         type: 'report',
         imageUrl: reportImages[i % reportImages.length],
         position: [
-          (Math.random() - 0.5) * 15,
-          (Math.random() - 0.5) * 10,
-          (Math.random() - 0.5) * 10 - 5
+          x,
+          (Math.random() - 0.5) * 8,
+          z
         ] as [number, number, number],
         rotationSpeed: [
-          Math.random() * 0.005,
-          Math.random() * 0.005,
-          Math.random() * 0.005
+          Math.random() * 0.003,
+          Math.random() * 0.003,
+          Math.random() * 0.003
         ] as [number, number, number],
-        floatSpeed: 0.5 + Math.random() * 0.5,
-        floatRange: 0.3 + Math.random() * 0.5,
-        scale: 0.8 + Math.random() * 0.4
+        floatSpeed: 0.4 + Math.random() * 0.4,
+        floatRange: 0.3 + Math.random() * 0.4,
+        scale: 0.7 + Math.random() * 0.3
       });
     }
     
-    // Generate floating doctor avatars
+    // Generate floating doctor avatars - positioned around the edges
     for (let i = 0; i < 15; i++) {
+      const angle = (i / 15) * Math.PI * 2;
+      const radius = 7 + Math.random() * 5;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius - 5;
+      
       items.push({
         type: 'doctor',
         imageUrl: doctorImages[i % doctorImages.length],
         position: [
-          (Math.random() - 0.5) * 15,
+          x,
           (Math.random() - 0.5) * 10,
-          (Math.random() - 0.5) * 10 - 3
+          z
         ] as [number, number, number],
         rotationSpeed: [
           0,
-          Math.random() * 0.01,
+          Math.random() * 0.008,
           0
         ] as [number, number, number],
-        floatSpeed: 0.4 + Math.random() * 0.6,
-        floatRange: 0.4 + Math.random() * 0.6,
+        floatSpeed: 0.3 + Math.random() * 0.5,
+        floatRange: 0.4 + Math.random() * 0.5,
         isCircle: true,
-        scale: 0.6 + Math.random() * 0.4
+        scale: 0.5 + Math.random() * 0.3
       });
     }
     
-    // Generate medical icons
+    // Generate medical icons - spread in outer ring
     const iconTypes = ['heart', 'brain', 'dna', 'stethoscope'];
     for (let i = 0; i < 20; i++) {
+      const angle = (i / 20) * Math.PI * 2;
+      const radius = 6 + Math.random() * 6;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius - 4;
+      
       items.push({
         type: 'icon',
         iconType: iconTypes[Math.floor(Math.random() * iconTypes.length)],
         position: [
-          (Math.random() - 0.5) * 15,
-          (Math.random() - 0.5) * 10,
-          (Math.random() - 0.5) * 8 - 2
+          x,
+          (Math.random() - 0.5) * 12,
+          z
         ] as [number, number, number],
         rotationSpeed: [
-          Math.random() * 0.01,
-          Math.random() * 0.01,
-          Math.random() * 0.01
+          Math.random() * 0.008,
+          Math.random() * 0.008,
+          Math.random() * 0.008
         ] as [number, number, number],
-        floatSpeed: 0.6 + Math.random() * 0.4,
-        floatRange: 0.5 + Math.random() * 0.5,
-        scale: 0.5 + Math.random() * 0.5
+        floatSpeed: 0.5 + Math.random() * 0.4,
+        floatRange: 0.4 + Math.random() * 0.5,
+        scale: 0.4 + Math.random() * 0.4
       });
     }
     
@@ -210,11 +227,22 @@ export const FloatingScene = () => {
   }, []);
 
   return (
-    <Canvas camera={{ position: [0, 0, 8], fov: 75 }} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}>
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[10, 10, 5]} intensity={1} />
-      <directionalLight position={[-10, -10, -5]} intensity={0.5} />
-      <pointLight position={[0, 0, 5]} intensity={0.5} color="#667eea" />
+    <Canvas 
+      camera={{ position: [0, 0, 10], fov: 70 }} 
+      style={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        width: '100%', 
+        height: '100%', 
+        zIndex: 0,
+        pointerEvents: 'none'
+      }}
+    >
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[10, 10, 5]} intensity={0.8} />
+      <directionalLight position={[-10, -10, -5]} intensity={0.4} />
+      <pointLight position={[0, 0, 5]} intensity={0.4} color="#667eea" />
       
       {elements.map((element, index) => {
         if (element.type === 'icon') {

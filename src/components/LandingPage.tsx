@@ -93,20 +93,10 @@ export const LandingPage = ({ onEnterApp }: LandingPageProps) => {
             <span className="text-2xl font-bold gradient-text">MedAnalyze</span>
           </div>
           
-          <div className="flex items-center gap-4">
-            <Badge variant="secondary" className="hidden md:flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              HIPAA Compliant
-            </Badge>
-            <Badge variant="secondary" className="hidden md:flex items-center gap-2">
-              <Zap className="w-4 h-4" />
-              AI Enhanced
-            </Badge>
-            <Button onClick={onEnterApp} size="lg" className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
-              Experience MedAnalyze
-              <ChevronRight className="w-5 h-5 ml-2" />
-            </Button>
-          </div>
+          <Button onClick={onEnterApp} size="lg" className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
+            Experience MedAnalyze
+            <ChevronRight className="w-5 h-5 ml-2" />
+          </Button>
         </div>
       </header>
 
@@ -118,15 +108,15 @@ export const LandingPage = ({ onEnterApp }: LandingPageProps) => {
             Powered by Advanced AI
           </Badge>
           
-          <h1 className="text-7xl md:text-8xl font-bold mb-6 gradient-text animate-fade-in">
+          <h1 className="text-7xl md:text-8xl font-bold mb-6 gradient-text animate-fade-in relative z-20">
             MedAnalyze
           </h1>
           
-          <p className="text-3xl md:text-4xl text-muted-foreground mb-12 max-w-3xl mx-auto">
+          <p className="text-3xl md:text-4xl text-muted-foreground mb-12 max-w-3xl mx-auto relative z-20">
             AI-Powered Medical Intelligence Platform
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16 relative z-20">
             <Button 
               onClick={onEnterApp}
               size="lg"
@@ -147,7 +137,7 @@ export const LandingPage = ({ onEnterApp }: LandingPageProps) => {
             </Button>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-6">
+          <div className="flex flex-wrap justify-center gap-6 relative z-20">
             <Badge variant="secondary" className="text-lg px-6 py-3">
               <Shield className="w-5 h-5 mr-2" />
               HIPAA Compliant
@@ -331,7 +321,7 @@ export const LandingPage = ({ onEnterApp }: LandingPageProps) => {
       {/* Footer */}
       <footer className="py-12 border-t border-border/50 relative z-10">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
-          <p>&copy; 2024 MedAnalyze. All rights reserved. HIPAA Compliant.</p>
+          <p>&copy; 2025 MedAnalyze. All rights reserved.</p>
         </div>
       </footer>
     </div>
