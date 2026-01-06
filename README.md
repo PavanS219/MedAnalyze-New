@@ -9,6 +9,26 @@
 
 MediExtract is a comprehensive medical intelligence platform that leverages cutting-edge AI technologies from Google to extract, analyze, and provide insights from medical reports. The system uses Google Cloud Vision API for OCR, Google Gemini API for intelligent text processing, and provides a seamless interface for medical report management and consultation booking.
 
+## 🖼️ Implementation Screenshots
+
+### Implementation Image 1
+![Implementation Screenshot 1](https://github.com/PavanS219/MedAnalyze/blob/3944b1f3642d31a41fe468d1a3db5539de13f7d7/Screenshot%202025-11-13%20022546.png)
+
+### Implementation Image 2
+![Implementation Screenshot 2](https://github.com/PavanS219/MedAnalyze/blob/3944b1f3642d31a41fe468d1a3db5539de13f7d7/Screenshot%202025-11-13%20023026.png)
+
+### Implementation Image 3
+![Implementation Screenshot 3](https://github.com/PavanS219/MedAnalyze/blob/3944b1f3642d31a41fe468d1a3db5539de13f7d7/Screenshot%202025-11-13%20023111.png)
+
+### Implementation Image 4
+![Implementation Screenshot 4](https://github.com/PavanS219/MedAnalyze/blob/3944b1f3642d31a41fe468d1a3db5539de13f7d7/Screenshot%202025-11-13%20023402.png)
+
+### Implementation Image 5
+![Implementation Screenshot 5](https://github.com/PavanS219/MedAnalyze/blob/3944b1f3642d31a41fe468d1a3db5539de13f7d7/Screenshot%202025-11-13%20023516.png)
+
+### Implementation Image 6
+![Implementation Screenshot 6](https://github.com/PavanS219/MedAnalyze/blob/3944b1f3642d31a41fe468d1a3db5539de13f7d7/Screenshot%202025-11-13%20155540.png)
+
 ## 🌟 Key Features
 
 ### 📊 **Intelligent Document Processing**
@@ -339,8 +359,7 @@ Contributions are welcome! Please follow these steps:
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
 3. Commit your changes: `git commit -m 'Add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+4. Open a Pull Request
 
 ## 📝 License
 
