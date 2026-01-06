@@ -1,4 +1,4 @@
-{ ##retry
+{ 
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
@@ -24,6 +24,15 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
+
+  /* linterpkg */
+
+
+
+
+
+
+      
     }
   },
   "include": ["src"]
