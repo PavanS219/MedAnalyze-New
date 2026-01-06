@@ -5,7 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg)](https://fastapi.tiangolo.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-> **Backend Repository**: [https://github.com/PavanTej219/blocky](https://github.com/PavanTej219/blocky)
+> **Backend Repository**: [https://github.com/PavanTej219/Backend](https://github.com/PavanTej219/Backend)
 
 MediExtract is a comprehensive medical intelligence platform that leverages cutting-edge AI technologies from Google to extract, analyze, and provide insights from medical reports. The system uses Google Cloud Vision API for OCR, Google Gemini API for intelligent text processing, and provides a seamless interface for medical report management and consultation booking.
 
@@ -104,8 +104,8 @@ Create a `.env` file in the root directory:
 # Google Cloud Vision API
 GOOGLE_VISION_API_KEY=your_google_vision_api_key
 
-# Groq API (for conversational AI)
-GROQ_API_KEY=your_groq_api_key
+# Gemini API  (for conversational AI)
+GEMINI_API_KEY=your_gemini_api_key
 
 # Qdrant Vector Database
 QDRANT_URL=your_qdrant_cluster_url
@@ -168,8 +168,8 @@ The application will open at `http://localhost:3000`
 2. Sign up and navigate to API Keys
 3. Generate a new API key
 
-### Groq
-1. Go to [Groq Cloud](https://console.groq.com/)
+### Google AI Studio
+1. Go to [Google AI Studio](https://aistudio.google.com)
 2. Create an account and generate an API key
 
 ## 📖 Usage Guide
@@ -202,7 +202,7 @@ The application will open at `http://localhost:3000`
 
 ### Backend
 ```
-blocky/
+Backend/
 ├── main.py                 # FastAPI application entry point
 ├── requirements.txt        # Python dependencies
 ├── .env                    # Environment variables (create this)
