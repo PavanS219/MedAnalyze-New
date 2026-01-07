@@ -382,8 +382,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📧 Support
 
 For issues, questions, or suggestions:
-- Open an issue on [GitHub](https://github.com/PavanTej219/blocky/issues)
-- Email: support@mediextract.com (if applicable)
+- Open an issue on [GitHub](https://github.com/PavanTej219/Backend/issues)
+
 
 ## 🔮 Future Enhancements
 
