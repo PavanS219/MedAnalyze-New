@@ -1,8 +1,236 @@
-import React, { useState, useEffect } from 'react';
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Send, FileText, Activity, AlertCircle, CheckCircle, Loader, Database, Hospital, Calendar, MapPin, Stethoscope, X, ExternalLink, Phone, Mail, Sparkles, TrendingUp, Shield, Zap, ChevronRight, Clock } from 'lucide-react';
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const API_BASE_URL = 'https://backend-production-fcea.up.railway.app';
+const API_BASE_URL = 'https://backend-production-fcea.up.railway.app/';
 
+// Visualization Component
+const TestResultsChart = ({ visualization }) => {
+  const COLORS = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe', '#fbbf24', '#ef4444', '#22c55e'];
+  
+  // Prepare data for bar chart
+  const barChartData = visualization.test_names.map((name, idx) => ({
+    name: name.length > 15 ? name.substring(0, 15) + '...' : name,
+    value: visualization.test_values[idx],
+    normal: visualization.normal_ranges[idx]
+  }));
+  
+  // Prepare data for pie chart (only for tests with numeric values)
+  const pieChartData = visualization.test_names.map((name, idx) => ({
+    name: name.length > 20 ? name.substring(0, 20) + '...' : name,
+    value: visualization.test_values[idx]
+  })).filter(item => item.value > 0);
+  
+  return (
+    <div style={{
+      background: 'rgba(255, 255, 255, 0.95)',
+      backdropFilter: 'blur(10px)',
+      border: '1px solid rgba(255, 255, 255, 0.3)',
+      borderRadius: '16px',
+      padding: '24px',
+      marginBottom: '20px',
+      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)'
+    }}>
+      <div style={{ marginBottom: '20px' }}>
+        <h4 style={{ fontSize: '1.125rem', fontWeight: '700', color: '#1f2937', marginBottom: '8px' }}>
+          {visualization.patient_name} - Test Results Visualization
+        </h4>
+        <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
+          Report Date: {visualization.report_date} | File: {visualization.report_filename}
+        </p>
+      </div>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: pieChartData.length > 0 ? '1fr 1fr' : '1fr', gap: '24px' }}>
+        {/* Bar Chart */}
+        <div>
+          <h5 style={{ fontSize: '0.9375rem', fontWeight: '600', color: '#374151', marginBottom: '16px', textAlign: 'center' }}>
+            Test Values Comparison
+          </h5>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={barChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+              <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} style={{ fontSize: '0.75rem' }} />
+              <YAxis style={{ fontSize: '0.75rem' }} />
+              <Tooltip 
+                contentStyle={{ 
+                  background: 'rgba(255, 255, 255, 0.95)', 
+                  border: '1px solid rgba(102, 126, 234, 0.3)',
+                  borderRadius: '8px',
+                  fontSize: '0.875rem'
+                }} 
+              />
+              <Legend wrapperStyle={{ fontSize: '0.875rem' }} />
+              <Bar dataKey="value" fill="#667eea" name="Patient Value" radius={[8, 8, 0, 0]} />
+              {visualization.normal_ranges.some(r => r !== null) && (
+                <Bar dataKey="normal" fill="#22c55e" name="Normal Range (Avg)" radius={[8, 8, 0, 0]} />
+              )}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        
+        {/* Pie Chart - only if we have valid data */}
+        {pieChartData.length > 0 && (
+          <div>
+            <h5 style={{ fontSize: '0.9375rem', fontWeight: '600', color: '#374151', marginBottom: '16px', textAlign: 'center' }}>
+              Test Distribution
+            </h5>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieChartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {pieChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    background: 'rgba(255, 255, 255, 0.95)', 
+                    border: '1px solid rgba(102, 126, 234, 0.3)',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem'
+                  }} 
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Voice Recognition Hook
+// Voice Recognition Hook - FIXED VERSION
+const useVoiceRecognition = (onResult) => {
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const recognitionRef = useRef(null);
+  const finalTranscriptRef = useRef(''); // Add ref to store final transcript
+
+  useEffect(() => {
+    // Check if speech recognition is supported
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      console.error('Speech recognition not supported in this browser');
+      return;
+    }
+
+    // Create recognition instance
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setTranscript('');
+      finalTranscriptRef.current = ''; // Reset ref
+    };
+
+    recognition.onresult = (event) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcriptText = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcriptText + ' ';
+        } else {
+          interimTranscript += transcriptText;
+        }
+      }
+
+      // Store final transcript in ref
+      if (finalTranscript) {
+        finalTranscriptRef.current += finalTranscript;
+      }
+
+      // Update display with either final or interim
+      setTranscript(finalTranscriptRef.current + interimTranscript);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      
+      // Use the ref value which persists
+      const finalText = finalTranscriptRef.current.trim();
+      
+      if (finalText) {
+        onResult(finalText);
+      }
+      
+      // Clear after a small delay
+      setTimeout(() => {
+        setTranscript('');
+        finalTranscriptRef.current = '';
+      }, 100);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+      if (event.error === 'not-allowed') {
+        alert('Microphone access denied. Please allow microphone access in your browser settings.');
+      } else if (event.error === 'no-speech') {
+        alert('No speech detected. Please try again.');
+      }
+      setTranscript('');
+      finalTranscriptRef.current = '';
+    };
+
+    recognitionRef.current = recognition;
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // Ignore errors on cleanup
+        }
+      }
+    };
+  }, [onResult]);
+
+  const startListening = () => {
+    if (recognitionRef.current && !isListening) {
+      try {
+        finalTranscriptRef.current = ''; // Reset before starting
+        recognitionRef.current.start();
+      } catch (e) {
+        console.error('Failed to start recognition:', e);
+        alert('Failed to start voice recognition. Please try again.');
+      }
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current && isListening) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.error('Failed to stop recognition:', e);
+      }
+    }
+  };
+
+  return { isListening, transcript, startListening, stopListening };
+};
 // Animated Background Component
 const AnimatedBackground = () => (
   <div style={{
@@ -937,11 +1165,28 @@ const MediExtractApp = () => {
   const [currentMessage, setCurrentMessage] = useState('');
   const [querying, setQuerying] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
+  const [visualizations, setVisualizations] = useState([]);
   const [consultationModal, setConsultationModal] = useState({
     isOpen: false,
     abnormalTests: [],
     patientName: ''
   });
+    const handleVoiceResult = (transcript) => {
+    setCurrentMessage(transcript);
+    // Auto-send after voice input
+    setTimeout(() => {
+      if (transcript.trim() && dbStatus?.exists) {
+        handleSendMessage();
+      }
+    }, 500);
+  };
+
+  const { isListening, transcript, startListening, stopListening } = useVoiceRecognition(handleVoiceResult);
+  // END OF VOICE RECOGNITION CODE
+
+  useEffect(() => {
+    checkDatabaseStatus();
+  }, []);
 
   useEffect(() => {
     checkDatabaseStatus();
@@ -977,6 +1222,7 @@ const MediExtractApp = () => {
 
       const data = await response.json();
       setProcessedReports(data.results);
+      setVisualizations(data.visualizations || []);
       
       if (data.success) {
         alert(`✅ Successfully processed ${data.successful_count} reports!`);
@@ -1137,7 +1383,8 @@ const MediExtractApp = () => {
         gridTemplateColumns: '380px 1fr', 
         flex: 1,
         overflow: 'hidden',
-        position: 'relative'
+        position: 'relative',
+        height: '100%'
       }}>
         {/* Premium Sidebar */}
         <div style={{ 
@@ -1204,7 +1451,7 @@ const MediExtractApp = () => {
               <input
                 type="file"
                 multiple
-                accept="image/*"
+                accept="image/*,.pdf,application/pdf"
                 onChange={handleFileChange}
                 style={{ display: 'none' }}
                 id="file-upload"
@@ -1227,7 +1474,7 @@ const MediExtractApp = () => {
                   {files.length > 0 ? `${files.length} files selected` : 'Drop files or click to upload'}
                 </p>
                 <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: 0 }}>
-                  Supports PNG, JPG, JPEG formats
+                  Supports PNG, JPG, JPEG formats and PDF Formats
                 </p>
               </label>
             </div>
@@ -1370,7 +1617,9 @@ const MediExtractApp = () => {
           backdropFilter: 'blur(20px)',
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          height: '100%',
+          position: 'relative'
         }}>
           {/* Premium Tab Navigation */}
           <div style={{
@@ -1491,14 +1740,20 @@ const MediExtractApp = () => {
             </div>
           )}
 
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' , position: 'relative', minHeight:0}}>
             {activeTab === 'chat' && (
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+              <div style={{ 
+                display: 'grid',
+                gridTemplateRows: '1fr auto',
+                height: '100%',
+                overflow: 'hidden',
+                position: 'relative'
+              }}>
+                {/* Messages Area */}
                 <div style={{
-                  flex: 1,
                   overflowY: 'auto',
-                  padding: '32px',
-                  background: 'transparent'
+                  overflowX: 'hidden',
+                  padding: '32px'
                 }}>
                   {messages.map((msg, idx) => (
                     <div
@@ -1553,20 +1808,22 @@ const MediExtractApp = () => {
                   )}
                 </div>
 
+                {/* Input Bar - Fixed at bottom via grid */}
                 <div style={{
                   borderTop: '1px solid rgba(229, 231, 235, 0.5)',
-                  padding: '24px 32px',
-                  background: 'rgba(255, 255, 255, 0.8)',
-                  backdropFilter: 'blur(10px)'
+                  padding: '20px 32px',
+                  background: 'rgba(255, 255, 255, 0.98)',
+                  backdropFilter: 'blur(20px)',
+                  boxShadow: '0 -4px 24px rgba(0, 0, 0, 0.1)'
                 }}>
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <input
                       type="text"
-                      value={currentMessage}
+                      value={isListening ? transcript : currentMessage}
                       onChange={(e) => setCurrentMessage(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                      placeholder="Ask about medical reports..."
-                      disabled={querying || !dbStatus?.exists}
+                      onKeyPress={(e) => e.key === 'Enter' && !isListening && handleSendMessage()}
+                      placeholder={isListening ? "Listening..." : "Ask about medical reports..."}
+                      disabled={querying || !dbStatus?.exists || isListening}
                       style={{
                         flex: 1,
                         border: '2px solid rgba(102, 126, 234, 0.2)',
@@ -1575,47 +1832,124 @@ const MediExtractApp = () => {
                         fontSize: '1rem',
                         outline: 'none',
                         transition: 'all 0.3s ease',
-                        background: 'rgba(255, 255, 255, 0.9)',
+                        background: isListening ? 'rgba(102, 126, 234, 0.1)' : 'rgba(255, 255, 255, 0.9)',
                         fontWeight: '500'
                       }}
                       onFocus={(e) => {
-                        e.currentTarget.style.borderColor = '#667eea';
-                        e.currentTarget.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
+                        if (!isListening) {
+                          e.currentTarget.style.borderColor = '#667eea';
+                          e.currentTarget.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
+                        }
                       }}
                       onBlur={(e) => {
                         e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.2)';
                         e.currentTarget.style.boxShadow = 'none';
                       }}
                     />
+                    
+                    {/* Voice Button */}
+                    <button
+                      onClick={isListening ? stopListening : startListening}
+                      disabled={querying || !dbStatus?.exists}
+                      style={{
+                        background: isListening 
+                          ? 'linear-gradient(135deg, #ef4444, #dc2626)' 
+                          : 'linear-gradient(135deg, #22c55e, #16a34a)',
+                        color: 'white',
+                        padding: '16px 24px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        cursor: querying || !dbStatus?.exists ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontWeight: '700',
+                        boxShadow: querying || !dbStatus?.exists 
+                          ? 'none' 
+                          : isListening 
+                            ? '0 6px 20px rgba(239, 68, 68, 0.4)' 
+                            : '0 6px 20px rgba(34, 197, 94, 0.4)',
+                        transition: 'all 0.3s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!querying && dbStatus?.exists) {
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                          e.currentTarget.style.boxShadow = isListening 
+                            ? '0 8px 28px rgba(239, 68, 68, 0.5)' 
+                            : '0 8px 28px rgba(34, 197, 94, 0.5)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!querying && dbStatus?.exists) {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.boxShadow = isListening 
+                            ? '0 6px 20px rgba(239, 68, 68, 0.4)' 
+                            : '0 6px 20px rgba(34, 197, 94, 0.4)';
+                        }
+                      }}
+                    >
+                      {isListening ? (
+                        <>
+                          <div style={{ 
+                            width: '10px', 
+                            height: '10px', 
+                            background: 'white', 
+                            borderRadius: '2px' 
+                          }} />
+                          Stop
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ 
+                            width: '16px', 
+                            height: '16px', 
+                            position: 'relative' 
+                          }}>
+                            <div style={{
+                              position: 'absolute',
+                              top: '50%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              width: '6px',
+                              height: '12px',
+                              background: 'white',
+                              borderRadius: '3px'
+                            }} />
+                          </div>
+                          Voice
+                        </>
+                      )}
+                    </button>
+                    
                     <button
                       onClick={handleSendMessage}
-                      disabled={querying || !currentMessage.trim() || !dbStatus?.exists}
+                      disabled={querying || !currentMessage.trim() || !dbStatus?.exists || isListening}
                       style={{
-                        background: querying || !currentMessage.trim() || !dbStatus?.exists 
+                        background: querying || !currentMessage.trim() || !dbStatus?.exists || isListening
                           ? 'linear-gradient(135deg, #d1d5db, #9ca3af)' 
                           : 'linear-gradient(135deg, #667eea, #764ba2)',
                         color: 'white',
                         padding: '16px 24px',
                         borderRadius: '12px',
                         border: 'none',
-                        cursor: querying || !currentMessage.trim() || !dbStatus?.exists ? 'not-allowed' : 'pointer',
+                        cursor: querying || !currentMessage.trim() || !dbStatus?.exists || isListening ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px',
                         fontWeight: '700',
-                        boxShadow: querying || !currentMessage.trim() || !dbStatus?.exists 
+                        boxShadow: querying || !currentMessage.trim() || !dbStatus?.exists || isListening
                           ? 'none' 
                           : '0 6px 20px rgba(102, 126, 234, 0.4)',
                         transition: 'all 0.3s ease'
                       }}
                       onMouseEnter={(e) => {
-                        if (!querying && currentMessage.trim() && dbStatus?.exists) {
+                        if (!querying && currentMessage.trim() && dbStatus?.exists && !isListening) {
                           e.currentTarget.style.transform = 'scale(1.05)';
                           e.currentTarget.style.boxShadow = '0 8px 28px rgba(102, 126, 234, 0.5)';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (!querying && currentMessage.trim() && dbStatus?.exists) {
+                        if (!querying && currentMessage.trim() && dbStatus?.exists && !isListening) {
                           e.currentTarget.style.transform = 'scale(1)';
                           e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
                         }
@@ -1628,14 +1962,14 @@ const MediExtractApp = () => {
                 </div>
               </div>
             )}
-
-            {activeTab === 'summary' && (
+{activeTab === 'summary' && (
               <div style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
                 <h3 style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '24px', color: '#1f2937' }}>
                   Processing Summary
                 </h3>
                 {processedReports.length > 0 ? (
                   <div>
+                    {/* Stats Grid */}
                     <div style={{
                       display: 'grid',
                       gridTemplateColumns: 'repeat(3, 1fr)',
@@ -1695,7 +2029,41 @@ const MediExtractApp = () => {
                       </div>
                     </div>
 
+                    {/* VISUALIZATIONS SECTION */}
+                    {visualizations.length > 0 && (
+                      <div style={{ marginBottom: '32px' }}>
+                        <h4 style={{ 
+                          fontSize: '1.25rem', 
+                          fontWeight: '700', 
+                          marginBottom: '20px', 
+                          color: '#1f2937',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px'
+                        }}>
+                          <span style={{ fontSize: '1.5rem' }}>📊</span>
+                          Test Results Visualizations
+                        </h4>
+                        {visualizations.map((viz, idx) => (
+                          <TestResultsChart key={idx} visualization={viz} />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Report Details Section */}
                     <div>
+                      <h4 style={{ 
+                        fontSize: '1.25rem', 
+                        fontWeight: '700', 
+                        marginBottom: '20px', 
+                        color: '#1f2937',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}>
+                        <FileText size={20} style={{ color: '#667eea' }} />
+                        Report Details
+                      </h4>
                       {processedReports.filter(r => r.success).map((report, idx) => (
                         <details key={idx} style={{
                           background: 'rgba(255, 255, 255, 0.95)',
