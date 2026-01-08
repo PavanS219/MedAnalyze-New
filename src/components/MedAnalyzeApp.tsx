@@ -9,7 +9,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Send, FileText, Activity, AlertCircle, CheckCircle, Loader, Database, Hospital, Calendar, MapPin, Stethoscope, X, ExternalLink, Phone, Mail, Sparkles, TrendingUp, Shield, Zap, ChevronRight, Clock } from 'lucide-react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const API_BASE_URL = 'https://backend-production-fcea.up.railway.app/';
+const API_BASE_URL = 'https://backend-1-a7k6.onrender.com';
 
 // Visualization Component
 const TestResultsChart = ({ visualization }) => {
