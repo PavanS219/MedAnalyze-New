@@ -1,4 +1,4 @@
-# 🏥 MedAnalyze - AI-Powered Medical Report Analytics Platform
+# MedAnalyze - AI-Powered Medical Report Analytics Platform
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![React](https://img.shields.io/badge/React-18.0+-61DAFB.svg)](https://reactjs.org/)
@@ -388,13 +388,13 @@ For issues, questions, or suggestions:
 ## 🔮 Future Enhancements
 
 - [ ] Multi-language support for medical reports
-- [ ] Voice-based query interface
+- [x] Voice-based query interface
 - [ ] Mobile applications (iOS/Android)
 - [ ] Integration with hospital EMR systems
 - [ ] Prescription management system
 - [ ] Appointment scheduling system
-- [ ] Health tracking and trends analysis
-- [ ] Export reports as PDF/Excel
+- [x] Health tracking and trends analysis
+- [X] Import reports as PDF
 - [ ] Share reports with doctors securely
 
 ---
