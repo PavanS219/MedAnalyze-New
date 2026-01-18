@@ -5,7 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg)](https://fastapi.tiangolo.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-> **Backend Repository**: [https://github.com/PavanTej219/Backend](https://github.com/PavanTej219/Backend)
+> **Backend Repository**: [https://github.com/PavanTej219/Backend](https://github.com/PavanTej219/backend1)
 
 MediExtract is a comprehensive medical intelligence platform that leverages cutting-edge AI technologies from Google to extract, analyze, and provide insights from medical reports. The system uses Google Cloud Vision API for OCR, Google Gemini API for intelligent text processing, and provides a seamless interface for medical report management and consultation booking.
 
