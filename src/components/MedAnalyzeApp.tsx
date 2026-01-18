@@ -2,14 +2,48 @@ declare global {
   interface Window {
     SpeechRecognition: any;
     webkitSpeechRecognition: any;
+    handleMapBooking: (index: number) => void;
+    google: {
+      maps: {
+        Map: any;
+        Marker: any;
+        InfoWindow: any;
+        Geocoder: any;
+        Point: any;
+        Animation: {
+          DROP: any;
+          BOUNCE: any;
+        };
+      };
+    };
   }
 }
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef , useCallback } from 'react';
 import { Upload, Send, FileText, Activity, AlertCircle, CheckCircle, Loader, Database, Hospital, Calendar, MapPin, Stethoscope, X, ExternalLink, Phone, Mail, Sparkles, TrendingUp, Shield, Zap, ChevronRight, Clock } from 'lucide-react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const API_BASE_URL = 'https://backend-1-a7k6.onrender.com';
+
+
+const API_BASE_URL = 'http://localhost:8000';
+
+// Google Maps Script Loader
+const loadGoogleMapsScript = (apiKey) => {
+  return new Promise<void>((resolve, reject) => {
+    if (window.google && window.google.maps) {
+      resolve();
+      return;
+    }
+    
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Google Maps'));
+    document.head.appendChild(script);
+  });
+};
 
 // Visualization Component
 const TestResultsChart = ({ visualization }) => {
@@ -74,24 +108,42 @@ const TestResultsChart = ({ visualization }) => {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        
-        {/* Pie Chart - only if we have valid data */}
+{/* Pie Chart - only if we have valid data */}
         {pieChartData.length > 0 && (
           <div>
             <h5 style={{ fontSize: '0.9375rem', fontWeight: '600', color: '#374151', marginBottom: '16px', textAlign: 'center' }}>
               Test Distribution
             </h5>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={400}>
               <PieChart>
                 <Pie
                   data={pieChartData}
                   cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
+                  cy="40%"
+                  labelLine={true}
+                  label={({ name, percent, cx, cy, midAngle, outerRadius }) => {
+                    const RADIAN = Math.PI / 180;
+                    const radius = outerRadius + 35;
+                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                    
+                    return (
+                      <text
+                        x={x}
+                        y={y}
+                        fill="#374151"
+                        textAnchor={x > cx ? 'start' : 'end'}
+                        dominantBaseline="central"
+                        style={{ fontSize: '11px', fontWeight: '600' }}
+                      >
+                        {`${(percent * 100).toFixed(1)}%`}
+                      </text>
+                    );
+                  }}
+                  outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
+                  minAngle={5}
                 >
                   {pieChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -104,6 +156,17 @@ const TestResultsChart = ({ visualization }) => {
                     borderRadius: '8px',
                     fontSize: '0.875rem'
                   }} 
+                />
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={80}
+                  wrapperStyle={{ 
+                    fontSize: '0.75rem', 
+                    paddingTop: '20px',
+                    lineHeight: '1.8'
+                  }}
+                  formatter={(value) => value}
+                  iconType="circle"
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -469,7 +532,7 @@ const DoctorCard = ({ doctor, onBook }) => (
       
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <button
-          onClick={() => onBook(doctor)}
+          onClick={() => onBook(doctor, 'book')}
           style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             color: 'white',
@@ -499,47 +562,217 @@ const DoctorCard = ({ doctor, onBook }) => (
           Book Now
         </button>
         
-        {doctor.profile_url && doctor.profile_url !== '#' && (
-          <a
-            href={doctor.profile_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              background: 'rgba(102, 126, 234, 0.1)',
-              color: '#667eea',
-              padding: '12px 24px',
-              borderRadius: '12px',
-              border: '1px solid rgba(102, 126, 234, 0.3)',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '0.875rem',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              justifyContent: 'center',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(102, 126, 234, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
-            }}
-          >
-            <ExternalLink size={14} />
-            Profile
-          </a>
-        )}
+        <button
+          onClick={() => onBook(doctor, 'profile')}
+          style={{
+            background: 'rgba(102, 126, 234, 0.1)',
+            color: '#667eea',
+            padding: '12px 24px',
+            borderRadius: '12px',
+            border: '1px solid rgba(102, 126, 234, 0.3)',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '0.875rem',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            justifyContent: 'center',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(102, 126, 234, 0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+          }}
+        >
+          <ExternalLink size={14} />
+          View Profile
+        </button>
       </div>
     </div>
   </div>
 );
+// Interactive Map Component
+const DoctorMapView = ({ doctors, city, state, onDoctorSelect }) => {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersRef = useRef([]);
+  const infoWindowRef = useRef(null);
 
+  useEffect(() => {
+    const addDoctorMarker = (map, doctor, index) => {
+      const geocoder = new window.google.maps.Geocoder();
+      
+      geocoder.geocode({ address: doctor.hospital }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const hospitalIcon = {
+            path: 'M12 2L4 9v12h16V9l-8-7zm3 13h-2v2h-2v-2H9v-2h2v-2h2v2h2v2z',
+            fillColor: '#ef4444',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2,
+            scale: 1.8,
+            anchor: new window.google.maps.Point(12, 21),
+          };
+          
+          const marker = new window.google.maps.Marker({
+            position: results[0].geometry.location,
+            map: map,
+            icon: hospitalIcon,
+            title: doctor.name,
+            animation: window.google.maps.Animation.DROP,
+          });
+          
+          const infoContent = `
+            <div style="padding: 16px; max-width: 300px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.25rem;">
+                  ${doctor.name.charAt(0)}
+                </div>
+                <div>
+                  <div style="font-weight: 700; font-size: 1.1rem; color: #1f2937; margin-bottom: 4px;">
+                    ${doctor.name}
+                  </div>
+                  <div style="font-size: 0.875rem; color: #667eea; font-weight: 600;">
+                    ${doctor.specialty}
+                  </div>
+                </div>
+              </div>
+              
+              <div style="border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 12px;">
+                <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 8px;">
+                  <strong>🏥</strong> ${doctor.hospital}
+                </div>
+                
+                ${doctor.experience ? `
+                  <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 8px;">
+                    <strong>⏱️</strong> ${doctor.experience}
+                  </div>
+                ` : ''}
+                
+                ${doctor.rating ? `
+                  <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 8px;">
+                    <strong>⭐</strong> <span style="font-weight: 600; color: #f59e0b;">${doctor.rating}</span>
+                  </div>
+                ` : ''}
+                
+                ${doctor.phone ? `
+                  <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 8px;">
+                    <strong>📞</strong> ${doctor.phone}
+                  </div>
+                ` : ''}
+              </div>
+              
+              <button 
+                onclick="window.handleMapBooking(${index})"
+                style="
+                  width: 100%;
+                  margin-top: 12px;
+                  padding: 12px 16px;
+                  background: linear-gradient(135deg, #667eea, #764ba2);
+                  color: white;
+                  border: none;
+                  border-radius: 10px;
+                  font-weight: 600;
+                  font-size: 0.9rem;
+                  cursor: pointer;
+                "
+              >
+                📅 Book Appointment
+              </button>
+            </div>
+          `;
+          
+          marker.addListener('click', () => {
+            infoWindowRef.current.setContent(infoContent);
+            infoWindowRef.current.open(map, marker);
+            
+            window.handleMapBooking = (idx) => {
+              onDoctorSelect(doctors[idx]);
+              infoWindowRef.current.close();
+            };
+          });
+          
+          marker.addListener('mouseover', () => {
+            marker.setAnimation(window.google.maps.Animation.BOUNCE);
+            setTimeout(() => marker.setAnimation(null), 750);
+          });
+          
+          markersRef.current.push(marker);
+        }
+      });
+    };
+
+    const initMap = async () => {
+      try {
+           // Fetch API key from backend
+        const configResponse = await fetch(`${API_BASE_URL}/api/config/maps-key`);
+        const configData = await configResponse.json();
+        const mapsApiKey = configData.maps_api_key;
+        
+        await loadGoogleMapsScript(mapsApiKey);
+        
+        if (!mapRef.current) return;
+
+        const geocoder = new window.google.maps.Geocoder();
+        geocoder.geocode({ address: `${city}, ${state}, India` }, (results, status) => {
+          if (status === 'OK' && results[0]) {
+            const center = results[0].geometry.location;
+            
+            const map = new window.google.maps.Map(mapRef.current, {
+              center: center,
+              zoom: 13,
+              mapTypeControl: true,
+              streetViewControl: false,
+              fullscreenControl: true,
+            });
+            
+            mapInstanceRef.current = map;
+            infoWindowRef.current = new window.google.maps.InfoWindow();
+            
+            doctors.forEach((doctor, index) => {
+              addDoctorMarker(map, doctor, index);
+            });
+          }
+        });
+        
+      } catch (error) {
+        console.error('Map initialization error:', error);
+      }
+    };
+    
+    initMap();
+    
+    return () => {
+      markersRef.current.forEach(marker => marker.setMap(null));
+      markersRef.current = [];
+      if (infoWindowRef.current) {
+        infoWindowRef.current.close();
+      }
+    };
+  }, [doctors, city, state, onDoctorSelect]);
+
+  return (
+    <div style={{
+      width: '100%',
+      height: '500px',
+      borderRadius: '16px',
+      overflow: 'hidden',
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+      border: '1px solid rgba(255, 255, 255, 0.3)',
+      marginBottom: '24px'
+    }}>
+      <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
+    </div>
+  );
+};
 // Enhanced Consultation Modal
 const ConsultationModal = ({ isOpen, onClose, abnormalTests, patientName }) => {
   const [step, setStep] = useState(1);
   const [city, setCity] = useState('Hyderabad');
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'map'
   const [state, setState] = useState('Telangana');
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
   const [doctors, setDoctors] = useState([]);
@@ -606,21 +839,35 @@ const ConsultationModal = ({ isOpen, onClose, abnormalTests, patientName }) => {
     }
   };
 
-  const handleBookAppointment = (doctor) => {
-    if (doctor.profile_url && doctor.profile_url !== '#') {
-      window.open(doctor.profile_url, '_blank');
-    } else {
-      const message = `Contact ${doctor.name} for appointment:\n\n` +
-        `Specialty: ${doctor.specialty}\n` +
-        `Hospital: ${doctor.hospital || 'N/A'}\n` +
-        (doctor.phone ? `Phone: ${doctor.phone}\n` : '') +
-        (doctor.email ? `Email: ${doctor.email}\n` : '') +
-        `\nPlease call or visit their clinic to book an appointment.`;
-      
-      alert(message);
+  const handleBookAppointment = (doctor, action = 'book') => {
+    if (action === 'profile') {
+      // Open Practo profile
+      if (doctor.profile_url && doctor.profile_url !== '#') {
+        window.open(doctor.profile_url, '_blank');
+      } else {
+        // Fallback: construct searchable Practo URL
+        const doctorSlug = doctor.name.toLowerCase()
+          .replace(/dr\.|dr\s/gi, '')
+          .trim()
+          .replace(/\s+/g, '-');
+        const citySlug = city.toLowerCase().replace(/\s+/g, '-');
+        const searchUrl = `https://www.practo.com/search/doctors?results_type=doctor&q=${doctorSlug}&city=${citySlug}`;
+        window.open(searchUrl, '_blank');
+      }
+    } else if (action === 'book') {
+      // Open Google Maps for booking
+      if (doctor.maps_url && doctor.maps_url !== '#') {
+        // Use the maps_url from backend
+        window.open(doctor.maps_url, '_blank');
+      } else if (doctor.hospital) {
+        // Fallback: construct Maps URL from hospital address
+        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(doctor.hospital)}`;
+        window.open(mapsUrl, '_blank');
+      } else {
+        alert('Hospital address not available for navigation');
+      }
     }
   };
-
   if (!isOpen) return null;
 
   return (
@@ -1010,7 +1257,78 @@ const ConsultationModal = ({ isOpen, onClose, abnormalTests, patientName }) => {
                 </button>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+             {/* View Mode Toggle */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                marginBottom: '20px',
+                background: 'rgba(249, 250, 251, 0.8)',
+                padding: '8px',
+                borderRadius: '12px'
+              }}>
+                <button
+                  onClick={() => setViewMode('list')}
+                  style={{
+                    flex: 1,
+                    padding: '12px 20px',
+                    background: viewMode === 'list' ? 'linear-gradient(135deg, #667eea, #764ba2)' : 'transparent',
+                    color: viewMode === 'list' ? 'white' : '#6b7280',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                  </svg>
+                  List View
+                </button>
+                <button
+                  onClick={() => setViewMode('map')}
+                  style={{
+                    flex: 1,
+                    padding: '12px 20px',
+                    background: viewMode === 'map' ? 'linear-gradient(135deg, #667eea, #764ba2)' : 'transparent',
+                    color: viewMode === 'map' ? 'white' : '#6b7280',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <MapPin size={16} />
+                  Map View
+                </button>
+              </div>
+
+              {viewMode === 'map' && (
+                <DoctorMapView 
+                  doctors={doctors} 
+                  city={city} 
+                  state={state}
+                  onDoctorSelect={handleBookAppointment}
+                />
+              )}
+
+              <div style={{ display: viewMode === 'list' ? 'flex' : 'none', flexDirection: 'column', gap: '20px' }}>
                 {doctors.map((doctor, idx) => (
                   <DoctorCard key={idx} doctor={doctor} onBook={handleBookAppointment} />
                 ))}
@@ -1022,7 +1340,6 @@ const ConsultationModal = ({ isOpen, onClose, abnormalTests, patientName }) => {
     </div>
   );
 };
-
 // Message Component
 const MessageContent = ({ content, tableData, abnormalTests, onConsultationClick }) => {
   const formatContent = (text) => {
@@ -1150,6 +1467,18 @@ const MediExtractApp = () => {
   const [processing, setProcessing] = useState(false);
   const [processedReports, setProcessedReports] = useState([]);
   const [dbStatus, setDbStatus] = useState(null);
+   // Prescription states
+  const [prescriptionFile, setPrescriptionFile] = useState(null);
+  const [processingPrescription, setProcessingPrescription] = useState(false);
+  const [prescriptionData, setPrescriptionData] = useState(null);
+  const [prescriptionMessages, setPrescriptionMessages] = useState([
+    {
+      role: 'assistant',
+      content: "👋 Upload a prescription image to extract medicine details!"
+    }
+  ]);
+  const [prescriptionQuery, setPrescriptionQuery] = useState('');
+  const [queryingPrescription, setQueryingPrescription] = useState(false);
   const [messages, setMessages] = useState<Array<{
     role: string;
     content: string;
@@ -1171,6 +1500,19 @@ const MediExtractApp = () => {
     abnormalTests: [],
     patientName: ''
   });
+
+  // Compare Reports states
+const [compareReports, setCompareReports] = useState({
+  availableReports: [],
+  selectedReport1: null,
+  selectedReport2: null,
+  report1File: null,
+  report2File: null,
+  useExisting1: true,
+  useExisting2: false,
+  comparing: false,
+  comparisonResult: null
+});
     const handleVoiceResult = (transcript) => {
     setCurrentMessage(transcript);
     // Auto-send after voice input
@@ -1272,6 +1614,70 @@ const MediExtractApp = () => {
       setQuerying(false);
     }
   };
+  const fetchAvailableReports = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/reports/list`);
+    const data = await response.json();
+    if (data.success) {
+      setCompareReports(prev => ({ ...prev, availableReports: data.reports }));
+    }
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+  }
+};
+
+const handleCompareReports = async () => {
+  setCompareReports(prev => ({ ...prev, comparing: true, comparisonResult: null }));
+  
+  try {
+    const formData = new FormData();
+    
+    // Report 1
+    if (compareReports.useExisting1 && compareReports.selectedReport1) {
+      formData.append('report1_id', compareReports.selectedReport1);
+    } else if (compareReports.report1File) {
+      formData.append('report1_file', compareReports.report1File);
+    } else {
+      alert('Please select or upload Report 1');
+      setCompareReports(prev => ({ ...prev, comparing: false }));
+      return;
+    }
+    
+    // Report 2
+    if (compareReports.useExisting2 && compareReports.selectedReport2) {
+      formData.append('report2_id', compareReports.selectedReport2);
+    } else if (compareReports.report2File) {
+      formData.append('report2_file', compareReports.report2File);
+    } else {
+      alert('Please select or upload Report 2');
+      setCompareReports(prev => ({ ...prev, comparing: false }));
+      return;
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/api/reports/compare`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      setCompareReports(prev => ({ ...prev, comparisonResult: data }));
+    } else {
+      alert(`Comparison failed: ${data.error}`);
+    }
+  } catch (error) {
+    alert(`Error comparing reports: ${error.message}`);
+  } finally {
+    setCompareReports(prev => ({ ...prev, comparing: false }));
+  }
+};
+
+useEffect(() => {
+  if (activeTab === 'compare' && dbStatus?.exists) {
+    fetchAvailableReports();
+  }
+}, [activeTab, dbStatus]);
 
   const handleConsultationClick = (abnormalTests, patientName) => {
     setConsultationModal({
@@ -1279,6 +1685,74 @@ const MediExtractApp = () => {
       abnormalTests,
       patientName
     });
+  };
+    const handlePrescriptionFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setPrescriptionFile(file);
+    }
+  };
+
+  const handleProcessPrescription = async () => {
+    if (!prescriptionFile) return;
+
+    setProcessingPrescription(true);
+    const formData = new FormData();
+    formData.append('file', prescriptionFile);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/process-prescription`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setPrescriptionData(data);
+        setPrescriptionMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `✅ Prescription processed successfully! Found ${data.medicines?.length || 0} medicines.`
+        }]);
+        alert('✅ Prescription processed successfully!');
+      } else {
+        alert(`❌ Error: ${data.error}`);
+      }
+    } catch (error) {
+      alert(`❌ Error processing prescription: ${error.message}`);
+    } finally {
+      setProcessingPrescription(false);
+    }
+  };
+
+  const handleSendPrescriptionQuery = async () => {
+    if (!prescriptionQuery.trim() || queryingPrescription) return;
+
+    const userMessage = prescriptionQuery;
+    setPrescriptionMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setPrescriptionQuery('');
+    setQueryingPrescription(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/query-prescription`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: userMessage })
+      });
+
+      const data = await response.json();
+      setPrescriptionMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: data.response 
+      }]);
+    } catch (error) {
+      setPrescriptionMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `❌ Error: ${error.message}` 
+      }]);
+    } finally {
+      setQueryingPrescription(false);
+    }
   };
 
   const sampleQueries = [
@@ -1631,6 +2105,8 @@ const MediExtractApp = () => {
             {[
               { id: 'chat', label: 'AI Assistant', icon: '🤖' },
               { id: 'summary', label: 'Report Summary', icon: '📊' },
+              { id: 'compare', label: 'Compare Reports', icon: '🔄' },
+              { id: 'prescriptions', label: 'Prescriptions', icon: '💊' },
               { id: 'samples', label: 'Sample Queries', icon: '💡' }
             ].map(tab => (
               <button
@@ -2177,89 +2653,666 @@ const MediExtractApp = () => {
               </div>
             )}
 
+
             {activeTab === 'samples' && (
-              <div style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '16px', color: '#1f2937' }}>
-                  Try These Sample Queries
-                </h3>
-                <p style={{ fontSize: '0.9375rem', color: '#6b7280', marginBottom: '32px', lineHeight: '1.6' }}>
-                  Click on any query below to try it. Our AI will automatically detect abnormal values and offer consultation booking with specialists.
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-                  {sampleQueries.map((query, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setCurrentMessage(query.text);
-                        setActiveTab('chat');
-                        setTimeout(() => handleSendMessage(), 100);
-                      }}
-                      disabled={!dbStatus?.exists}
-                      style={{
-                        textAlign: 'left',
-                        padding: '24px',
-                        background: 'rgba(255, 255, 255, 0.95)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255, 255, 255, 0.3)',
-                        borderRadius: '16px',
-                        cursor: !dbStatus?.exists ? 'not-allowed' : 'pointer',
-                        opacity: !dbStatus?.exists ? 0.5 : 1,
-                        transition: 'all 0.3s ease',
-                        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)',
-                        position: 'relative',
-                        overflow: 'hidden'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (dbStatus?.exists) {
-                          e.currentTarget.style.transform = 'translateY(-4px)';
-                          e.currentTarget.style.boxShadow = '0 8px 28px rgba(102, 126, 234, 0.2)';
-                          e.currentTarget.style.borderColor = '#667eea';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (dbStatus?.exists) {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.06)';
-                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                        }
-                      }}
-                    >
-                      <div style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '12px',
-                        background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1))',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '1.5rem',
-                        marginBottom: '16px'
-                      }}>
-                        {query.icon}
-                      </div>
-                      <div style={{ fontWeight: '600', marginBottom: '8px', color: '#1f2937', fontSize: '0.9375rem', lineHeight: '1.5' }}>
-                        {query.text}
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        color: '#667eea',
-                        fontSize: '0.8125rem',
-                        fontWeight: '600'
-                      }}>
-                        <span>Try this query</span>
-                        <ChevronRight size={14} />
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+  <div style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
+    <h3 style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '16px', color: '#1f2937' }}>
+      Try These Sample Queries
+    </h3>
+    <p style={{ fontSize: '0.9375rem', color: '#6b7280', marginBottom: '32px', lineHeight: '1.6' }}>
+      Click on any query below to try it. Our AI will automatically detect abnormal values and offer consultation booking with specialists.
+    </p>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+      {sampleQueries.map((query, idx) => (
+        <button
+          key={idx}
+          onClick={() => {
+            setCurrentMessage(query.text);
+            setActiveTab('chat');
+            setTimeout(() => handleSendMessage(), 100);
+          }}
+          disabled={!dbStatus?.exists}
+          style={{
+            textAlign: 'left',
+            padding: '24px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: '16px',
+            cursor: !dbStatus?.exists ? 'not-allowed' : 'pointer',
+            opacity: !dbStatus?.exists ? 0.5 : 1,
+            transition: 'all 0.3s ease',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+          onMouseEnter={(e) => {
+            if (dbStatus?.exists) {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 28px rgba(102, 126, 234, 0.2)';
+              e.currentTarget.style.borderColor = '#667eea';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (dbStatus?.exists) {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.06)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+            }
+          }}
+        >
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.5rem',
+            marginBottom: '16px'
+          }}>
+            {query.icon}
           </div>
+          <div style={{ fontWeight: '600', marginBottom: '8px', color: '#1f2937', fontSize: '0.9375rem', lineHeight: '1.5' }}>
+            {query.text}
+          </div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            color: '#667eea',
+            fontSize: '0.8125rem',
+            fontWeight: '600'
+          }}>
+            <span>Try this query</span>
+            <ChevronRight size={14} />
+          </div>
+        </button>
+      ))}
+    </div>
+  </div>
+)}
+
+{activeTab === 'compare' && (
+  <div style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
+    <h3 style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '16px', color: '#1f2937' }}>
+      Compare Two Reports
+    </h3>
+    <p style={{ fontSize: '0.9375rem', color: '#6b7280', marginBottom: '32px', lineHeight: '1.6' }}>
+      Compare test results from two medical reports side by side
+    </p>
+
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
+      {/* Report 1 Selection */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: '16px',
+        padding: '24px',
+        border: '1px solid rgba(255, 255, 255, 0.3)',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)'
+      }}>
+        <h4 style={{ fontSize: '1.125rem', fontWeight: '700', marginBottom: '20px', color: '#1f2937' }}>
+          Report 1
+        </h4>
+        
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
+            <input
+              type="radio"
+              checked={compareReports.useExisting1}
+              onChange={() => setCompareReports(prev => ({ ...prev, useExisting1: true }))}
+            />
+            <span style={{ fontWeight: '600', fontSize: '0.9375rem' }}>Use Existing Report</span>
+          </label>
+          
+          {compareReports.useExisting1 && (
+            <select
+              value={compareReports.selectedReport1 || ''}
+              onChange={(e) => setCompareReports(prev => ({ ...prev, selectedReport1: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '10px',
+                border: '2px solid rgba(102, 126, 234, 0.2)',
+                fontSize: '0.9375rem',
+                outline: 'none'
+              }}
+            >
+              <option value="">Select a report...</option>
+              {compareReports.availableReports.map((report, idx) => (
+                <option key={idx} value={report.id}>
+                  {report.patient_name} - {report.report_date} ({report.report_type})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        
+        <div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
+            <input
+              type="radio"
+              checked={!compareReports.useExisting1}
+              onChange={() => setCompareReports(prev => ({ ...prev, useExisting1: false }))}
+            />
+            <span style={{ fontWeight: '600', fontSize: '0.9375rem' }}>Upload New Report</span>
+          </label>
+          
+          {!compareReports.useExisting1 && (
+            <div style={{
+              border: '2px dashed rgba(102, 126, 234, 0.3)',
+              borderRadius: '12px',
+              padding: '20px',
+              textAlign: 'center',
+              cursor: 'pointer',
+              background: 'rgba(102, 126, 234, 0.03)'
+            }}>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => setCompareReports(prev => ({ ...prev, report1File: e.target.files[0] }))}
+                style={{ display: 'none' }}
+                id="report1-upload"
+              />
+              <label htmlFor="report1-upload" style={{ cursor: 'pointer' }}>
+                <FileText size={32} style={{ color: '#667eea', margin: '0 auto 12px' }} />
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
+                  {compareReports.report1File ? compareReports.report1File.name : 'Click to upload'}
+                </p>
+              </label>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Report 2 Selection */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: '16px',
+        padding: '24px',
+        border: '1px solid rgba(255, 255, 255, 0.3)',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)'
+      }}>
+        <h4 style={{ fontSize: '1.125rem', fontWeight: '700', marginBottom: '20px', color: '#1f2937' }}>
+          Report 2
+        </h4>
+        
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
+            <input
+              type="radio"
+              checked={compareReports.useExisting2}
+              onChange={() => setCompareReports(prev => ({ ...prev, useExisting2: true }))}
+            />
+            <span style={{ fontWeight: '600', fontSize: '0.9375rem' }}>Use Existing Report</span>
+          </label>
+          
+          {compareReports.useExisting2 && (
+            <select
+              value={compareReports.selectedReport2 || ''}
+              onChange={(e) => setCompareReports(prev => ({ ...prev, selectedReport2: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '10px',
+                border: '2px solid rgba(102, 126, 234, 0.2)',
+                fontSize: '0.9375rem',
+                outline: 'none'
+              }}
+            >
+              <option value="">Select a report...</option>
+              {compareReports.availableReports.map((report, idx) => (
+                <option key={idx} value={report.id}>
+                  {report.patient_name} - {report.report_date} ({report.report_type})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        
+        <div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
+            <input
+              type="radio"
+              checked={!compareReports.useExisting2}
+              onChange={() => setCompareReports(prev => ({ ...prev, useExisting2: false }))}
+            />
+            <span style={{ fontWeight: '600', fontSize: '0.9375rem' }}>Upload New Report</span>
+          </label>
+          
+          {!compareReports.useExisting2 && (
+            <div style={{
+              border: '2px dashed rgba(102, 126, 234, 0.3)',
+              borderRadius: '12px',
+              padding: '20px',
+              textAlign: 'center',
+              cursor: 'pointer',
+              background: 'rgba(102, 126, 234, 0.03)'
+            }}>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => setCompareReports(prev => ({ ...prev, report2File: e.target.files[0] }))}
+                style={{ display: 'none' }}
+                id="report2-upload"
+              />
+              <label htmlFor="report2-upload" style={{ cursor: 'pointer' }}>
+                <FileText size={32} style={{ color: '#667eea', margin: '0 auto 12px' }} />
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
+                  {compareReports.report2File ? compareReports.report2File.name : 'Click to upload'}
+                </p>
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+
+    {/* Compare Button */}
+    <button
+      onClick={handleCompareReports}
+      disabled={compareReports.comparing}
+      style={{
+        width: '100%',
+        background: compareReports.comparing 
+          ? 'linear-gradient(135deg, #d1d5db, #9ca3af)' 
+          : 'linear-gradient(135deg, #667eea, #764ba2)',
+        color: 'white',
+        padding: '16px',
+        borderRadius: '12px',
+        border: 'none',
+        cursor: compareReports.comparing ? 'not-allowed' : 'pointer',
+        fontWeight: '700',
+        fontSize: '1rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '12px',
+        marginBottom: '32px',
+        boxShadow: compareReports.comparing ? 'none' : '0 8px 24px rgba(102, 126, 234, 0.4)',
+        transition: 'all 0.3s ease'
+      }}
+    >
+      {compareReports.comparing ? (
+        <>
+          <Loader style={{ animation: 'spin 1s linear infinite' }} size={20} />
+          Comparing Reports...
+        </>
+      ) : (
+        <>
+          <TrendingUp size={20} />
+          Compare Reports
+        </>
+      )}
+    </button>
+
+    {/* Comparison Result */}
+    {compareReports.comparisonResult && (
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: '16px',
+        padding: '28px',
+        border: '1px solid rgba(255, 255, 255, 0.3)',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)'
+      }}>
+        <h4 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '20px', color: '#1f2937' }}>
+          Comparison Results
+        </h4>
+        
+        {/* Report Info Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+          <div style={{ padding: '16px', background: 'rgba(102, 126, 234, 0.1)', borderRadius: '12px' }}>
+            <h5 style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '8px' }}>Report 1</h5>
+            <p style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937', margin: '0 0 4px 0' }}>
+              {compareReports.comparisonResult.report1?.patient_name}
+            </p>
+            <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: 0 }}>
+              {compareReports.comparisonResult.report1?.report_date} • {compareReports.comparisonResult.report1?.hospital_name}
+            </p>
+          </div>
+          
+          <div style={{ padding: '16px', background: 'rgba(102, 126, 234, 0.1)', borderRadius: '12px' }}>
+            <h5 style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '8px' }}>Report 2</h5>
+            <p style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937', margin: '0 0 4px 0' }}>
+              {compareReports.comparisonResult.report2?.patient_name}
+            </p>
+            <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: 0 }}>
+              {compareReports.comparisonResult.report2?.report_date} • {compareReports.comparisonResult.report2?.hospital_name}
+            </p>
+          </div>
+        </div>
+        
+        {/* Comparison Table */}
+        {compareReports.comparisonResult.comparison_table && (
+          <ComparisonTable tableData={compareReports.comparisonResult.comparison_table} />
+        )}
+      </div>
+    )}
+  </div>
+)}
+            {activeTab === 'prescriptions' && (
+              <div style={{ 
+                display: 'grid',
+                gridTemplateRows: prescriptionData ? '400px 1fr auto' : '1fr auto',
+                height: '100%',
+                overflow: 'hidden',
+                gap: '20px',
+                padding: '32px'
+              }}>
+                {/* Upload Section */}
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  borderRadius: '20px',
+                  padding: '28px',
+                  border: '1px solid rgba(255, 255, 255, 0.4)',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)'
+                }}>
+                  <h3 style={{
+                    fontSize: '1.25rem',
+                    fontWeight: '700',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    color: '#1f2937'
+                  }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      💊
+                    </div>
+                    Upload Prescription
+                  </h3>
+
+                  <div style={{
+                    border: '3px dashed rgba(102, 126, 234, 0.3)',
+                    borderRadius: '16px',
+                    padding: '32px 24px',
+                    textAlign: 'center',
+                    marginBottom: '20px',
+                    cursor: 'pointer',
+                    transition: 'all 0.4s ease',
+                    background: 'rgba(102, 126, 234, 0.03)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#667eea';
+                    e.currentTarget.style.background = 'rgba(102, 126, 234, 0.08)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.3)';
+                    e.currentTarget.style.background = 'rgba(102, 126, 234, 0.03)';
+                  }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePrescriptionFileChange}
+                      style={{ display: 'none' }}
+                      id="prescription-upload"
+                    />
+                    <label htmlFor="prescription-upload" style={{ cursor: 'pointer', display: 'block' }}>
+                      <div style={{
+                        width: '64px',
+                        height: '64px',
+                        margin: '0 auto 16px',
+                        borderRadius: '16px',
+                        background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '2rem'
+                      }}>
+                        💊
+                      </div>
+                      <p style={{ fontSize: '1rem', color: '#1f2937', margin: '0 0 8px 0', fontWeight: '600' }}>
+                        {prescriptionFile ? prescriptionFile.name : 'Drop prescription or click to upload'}
+                      </p>
+                      <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: 0 }}>
+                        Supports handwritten prescriptions (PNG, JPG, JPEG)
+                      </p>
+                    </label>
+                  </div>
+
+                  <button
+                    onClick={handleProcessPrescription}
+                    disabled={!prescriptionFile || processingPrescription}
+                    style={{
+                      width: '100%',
+                      background: !prescriptionFile || processingPrescription 
+                        ? 'linear-gradient(135deg, #d1d5db, #9ca3af)' 
+                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      padding: '16px 24px',
+                      borderRadius: '12px',
+                      fontWeight: '700',
+                      border: 'none',
+                      cursor: !prescriptionFile || processingPrescription ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '12px',
+                      fontSize: '1rem',
+                      boxShadow: !prescriptionFile || processingPrescription 
+                        ? 'none' 
+                        : '0 8px 24px rgba(102, 126, 234, 0.4)',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    {processingPrescription ? (
+                      <>
+                        <Loader style={{ animation: 'spin 1s linear infinite' }} size={20} />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={20} />
+                        Extract Medicines
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Results Section */}
+                {prescriptionData && (
+                  <div style={{ overflowY: 'auto', paddingRight: '10px' }}>
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.95)',
+                      borderRadius: '20px',
+                      padding: '28px',
+                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+                      marginBottom: '20px'
+                    }}>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '20px', color: '#1f2937' }}>
+                        Prescription Details
+                      </h3>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                        {prescriptionData.doctor_name && (
+                          <div style={{ padding: '12px', background: 'rgba(102, 126, 234, 0.1)', borderRadius: '12px' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px' }}>Doctor</div>
+                            <div style={{ fontSize: '0.9375rem', fontWeight: '600', color: '#1f2937' }}>
+                              {prescriptionData.doctor_name}
+                            </div>
+                          </div>
+                        )}
+                        {prescriptionData.patient_name && (
+                          <div style={{ padding: '12px', background: 'rgba(102, 126, 234, 0.1)', borderRadius: '12px' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px' }}>Patient</div>
+                            <div style={{ fontSize: '0.9375rem', fontWeight: '600', color: '#1f2937' }}>
+                              {prescriptionData.patient_name}
+                            </div>
+                          </div>
+                        )}
+                        {prescriptionData.date && (
+                          <div style={{ padding: '12px', background: 'rgba(102, 126, 234, 0.1)', borderRadius: '12px' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px' }}>Date</div>
+                            <div style={{ fontSize: '0.9375rem', fontWeight: '600', color: '#1f2937' }}>
+                              {prescriptionData.date}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <h4 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '16px', color: '#374151' }}>
+                        Prescribed Medicines
+                      </h4>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {prescriptionData.medicines?.map((med, idx) => (
+                          <div key={idx} style={{
+                            background: 'rgba(249, 250, 251, 0.8)',
+                            borderRadius: '12px',
+                            padding: '20px',
+                            border: '1px solid rgba(229, 231, 235, 0.5)',
+                            transition: 'all 0.3s ease'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'}
+                          onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                              <div>
+                                <h5 style={{ fontSize: '1.0625rem', fontWeight: '700', color: '#1f2937', marginBottom: '8px' }}>
+                                  {med.name}
+                                </h5>
+                                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '0.875rem' }}>
+                                  <div>
+                                    <span style={{ color: '#6b7280' }}>Dosage: </span>
+                                    <span style={{ fontWeight: '600', color: '#667eea' }}>{med.dosage}</span>
+                                  </div>
+                                  <div>
+                                    <span style={{ color: '#6b7280' }}>Timing: </span>
+                                    <span style={{ fontWeight: '600', color: '#667eea' }}>{med.timing}</span>
+                                  </div>
+                                  <div>
+                                    <span style={{ color: '#6b7280' }}>Duration: </span>
+                                    <span style={{ fontWeight: '600', color: '#667eea' }}>{med.duration}</span>
+                                  </div>
+                                </div>
+                                {med.instructions && (
+                                  <div style={{ marginTop: '8px', fontSize: '0.8125rem', color: '#6b7280', fontStyle: 'italic' }}>
+                                    📝 {med.instructions}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '12px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(229, 231, 235, 0.5)' }}>
+                              <span style={{ fontSize: '0.8125rem', fontWeight: '600', color: '#374151' }}>Buy Online:</span>
+                              {med.buy_links?.map((link, linkIdx) => {
+                                const storeName = link.includes('1mg') ? '1mg' : link.includes('netmeds') ? 'Netmeds' : 'PharmEasy';
+                                return (
+                                  <a
+                                    key={linkIdx}
+                                    href={link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      padding: '6px 12px',
+                                      background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                                      color: 'white',
+                                      borderRadius: '8px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: '600',
+                                      textDecoration: 'none',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      transition: 'all 0.3s ease'
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                  >
+                                    <ExternalLink size={12} />
+                                    {storeName}
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Chat Section - Only show if prescription is processed */}
+                {prescriptionData && (
+                  <div style={{
+                    borderTop: '1px solid rgba(229, 231, 235, 0.5)',
+                    padding: '20px 0 0 0',
+                    background: 'rgba(255, 255, 255, 0.98)',
+                    backdropFilter: 'blur(20px)'
+                  }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        value={prescriptionQuery}
+                        onChange={(e) => setPrescriptionQuery(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSendPrescriptionQuery()}
+                        placeholder="Ask about medicines, dosages, or timings..."
+                        disabled={queryingPrescription}
+                        style={{
+                          flex: 1,
+                          border: '2px solid rgba(102, 126, 234, 0.2)',
+                          borderRadius: '12px',
+                          padding: '16px 20px',
+                          fontSize: '1rem',
+                          outline: 'none',
+                          transition: 'all 0.3s ease',
+                          background: 'rgba(255, 255, 255, 0.9)',
+                          fontWeight: '500'
+                        }}
+                        onFocus={(e) => {
+                          e.currentTarget.style.borderColor = '#667eea';
+                          e.currentTarget.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.2)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      />
+                      
+                      <button
+                        onClick={handleSendPrescriptionQuery}
+                        disabled={queryingPrescription || !prescriptionQuery.trim()}
+                        style={{
+                          background: queryingPrescription || !prescriptionQuery.trim()
+                            ? 'linear-gradient(135deg, #d1d5db, #9ca3af)' 
+                            : 'linear-gradient(135deg, #667eea, #764ba2)',
+                          color: 'white',
+                          padding: '16px 24px',
+                          borderRadius: '12px',
+                          border: 'none',
+                          cursor: queryingPrescription || !prescriptionQuery.trim() ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          fontWeight: '700',
+                          boxShadow: queryingPrescription || !prescriptionQuery.trim()
+                            ? 'none' 
+                            : '0 6px 20px rgba(102, 126, 234, 0.4)',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        <Send size={20} />
+                        Send
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          
+          </div>
+        </div>
+      </div>
+      
       <ConsultationModal
         isOpen={consultationModal.isOpen}
         onClose={() => setConsultationModal({ isOpen: false, abnormalTests: [], patientName: '' })}
