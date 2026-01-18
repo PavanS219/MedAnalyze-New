@@ -25,7 +25,7 @@ import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Toolti
 
 
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://backend-1-a7k6.onrender.com';
 
 // Google Maps Script Loader
 const loadGoogleMapsScript = (apiKey) => {
