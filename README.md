@@ -7,7 +7,7 @@
 
 > **Backend Repository**: [https://github.com/PavanTej219/Backend](https://github.com/PavanTej219/backend1)
 
-MediExtract is a comprehensive medical intelligence platform that leverages cutting-edge AI technologies from Google to extract, analyze, and provide insights from medical reports. The system uses Google Cloud Vision API for OCR, Google Gemini API for intelligent text processing, and provides a seamless interface for medical report management and consultation booking.
+MediExtract is a comprehensive medical intelligence platform that leverages cutting-edge AI technologies from Google to extract, analyze, and provide insights from medical reports. The system uses EasyOCR, Groq LLM Llama 3.3-70B API for intelligent text processing, and provides a seamless interface for medical report management and consultation booking.
 
 ## 🖼️ Implementation Screenshots
 
@@ -65,7 +65,7 @@ MediExtract is a comprehensive medical intelligence platform that leverages cutt
 
 ### Backend
 - **Framework**: FastAPI (Python)
-- **OCR Engine**: Google Cloud Vision API
+- **OCR Engine**: EasyOCR
 - **AI/ML**: 
   - Google Gemini API (gemini-1.5-flash) for intelligent text processing
   - Groq API (llama-3.3-70b-versatile) for conversational AI
@@ -121,8 +121,6 @@ pip install -r requirements.txt
 Create a `.env` file in the root directory:
 
 ```env
-# Google Cloud Vision API
-GOOGLE_VISION_API_KEY=your_google_vision_api_key
 
 # Gemini API  (for conversational AI)
 GEMINI_API_KEY=your_gemini_api_key
